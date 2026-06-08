@@ -265,6 +265,7 @@ class Lomi extends PaymentModule
         return array(
             'currency_code' => strtoupper($currency->iso_code),
             'amount' => $this->getAmountMinorUnits($cart),
+            'integration_source' => 'prestashop',
             'success_url' => $successUrl,
             'cancel_url' => $cancelUrl,
             'customer_email' => $customer->email,
