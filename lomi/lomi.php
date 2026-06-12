@@ -24,7 +24,7 @@ class Lomi extends PaymentModule
         $this->version = '1.0.0';
         $this->ps_versions_compliancy = array('min' => '1.7', 'max' => _PS_VERSION_);
         $this->author = 'lomi.';
-        $this->controllers = array('payment', 'validation', 'callback', 'webhook');
+        $this->controllers = array('payment', 'validation', 'callback', 'webhook', 'abandon');
         $this->is_eu_compatible = 0;
 
         $this->currencies = true;
@@ -80,6 +80,39 @@ class Lomi extends PaymentModule
             array(
                 'media' => 'all',
                 'priority' => 200,
+            )
+        );
+
+        $cart = $this->context->cart;
+        $customer = $this->context->customer;
+        if (!Validate::isLoadedObject($cart) || (int) $cart->id_customer === 0 || !Validate::isLoadedObject($customer)) {
+            return;
+        }
+
+        $abandonUrl = $this->context->link->getModuleLink(
+            $this->name,
+            'abandon',
+            array(
+                'id_cart' => (int) $cart->id,
+                'key' => $customer->secure_key,
+                'ajax' => 1,
+            ),
+            true
+        );
+
+        Media::addJsDef(array(
+            'lomiCheckoutParams' => array(
+                'storageKey' => 'ps_lomi_checkout_redirect',
+                'abandonUrl' => $abandonUrl,
+            ),
+        ));
+
+        $this->context->controller->registerJavascript(
+            'module-lomi-checkout-abandon',
+            'modules/' . $this->name . '/views/js/checkout-abandon.js',
+            array(
+                'position' => 'bottom',
+                'priority' => 210,
             )
         );
     }
@@ -292,6 +325,32 @@ class Lomi extends PaymentModule
     }
 
     /**
+     * Clear hosted checkout mapping when shopper abandons payment.
+     *
+     * @param int $idCart
+     *
+     * @return bool
+     */
+    public function abandonHostedCheckout($idCart)
+    {
+        $idCart = (int) $idCart;
+        if ($idCart <= 0) {
+            return false;
+        }
+
+        $orderId = $this->getOrderIdByCartId($idCart);
+        if ($orderId) {
+            $order = new Order($orderId);
+            $paid = (int) Configuration::get('PS_OS_LOMI');
+            if (Validate::isLoadedObject($order) && (int) $order->getCurrentState() === $paid) {
+                return false;
+            }
+        }
+
+        return Db::getInstance()->delete('lomi_checkout', 'id_cart=' . $idCart);
+    }
+
+    /**
      * @param Cart $cart
      * @param Customer $customer
      *
@@ -307,7 +366,10 @@ class Lomi extends PaymentModule
             'key' => $customer->secure_key,
         ), true);
 
-        $cancelUrl = $link->getPageLink('order', true, null, array('step' => 3));
+        $cancelUrl = $link->getModuleLink('lomi', 'abandon', array(
+            'id_cart' => (int) $cart->id,
+            'key' => $customer->secure_key,
+        ), true);
 
         $phone = '';
         $addr = new Address((int) $cart->id_address_invoice);
