@@ -2,7 +2,7 @@
 <module>
     <name>lomi</name>
     <displayName><![CDATA[lomi.]]></displayName>
-    <version><![CDATA[2.0.0]]></version>
+    <version><![CDATA[1.0.0]]></version>
     <description><![CDATA[Accept payments via lomi. hosted checkout. PrestaShop 1.7+.]]></description>
     <author><![CDATA[lomi.]]></author>
     <tab><![CDATA[payments_gateways]]></tab>

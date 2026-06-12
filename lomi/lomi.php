@@ -10,6 +10,7 @@ if (!defined('_PS_VERSION_')) {
 }
 
 require_once __DIR__ . '/classes/LomiApiClient.php';
+require_once __DIR__ . '/classes/CheckoutBranding.php';
 
 class Lomi extends PaymentModule
 {
@@ -20,7 +21,7 @@ class Lomi extends PaymentModule
     {
         $this->name = 'lomi';
         $this->tab = 'payments_gateways';
-        $this->version = '2.0.0';
+        $this->version = '1.0.0';
         $this->ps_versions_compliancy = array('min' => '1.7', 'max' => _PS_VERSION_);
         $this->author = 'lomi.';
         $this->controllers = array('payment', 'validation', 'callback', 'webhook');
@@ -46,6 +47,7 @@ class Lomi extends PaymentModule
         if (!parent::install()
             || !$this->registerHook('paymentReturn')
             || !$this->registerHook('paymentOptions')
+            || !$this->registerHook('actionFrontControllerSetMedia')
             || !$this->installDb()
             || !$this->installOrderState()
         ) {
@@ -57,6 +59,53 @@ class Lomi extends PaymentModule
         }
 
         return true;
+    }
+
+    /**
+     * Register checkout branding stylesheet on order (checkout) page.
+     */
+    public function hookActionFrontControllerSetMedia($params)
+    {
+        if (!$this->active || !isset($this->context->controller->php_self)) {
+            return;
+        }
+
+        if ($this->context->controller->php_self !== 'order') {
+            return;
+        }
+
+        $this->context->controller->registerStylesheet(
+            'module-lomi-checkout-branding',
+            'modules/' . $this->name . '/views/css/checkout-branding.css',
+            array(
+                'media' => 'all',
+                'priority' => 200,
+            )
+        );
+    }
+
+    /**
+     * @return LomiCheckoutBranding
+     */
+    protected function getCheckoutBranding()
+    {
+        return new LomiCheckoutBranding($this);
+    }
+
+    /**
+     * @return string
+     */
+    protected function renderCheckoutBranding()
+    {
+        $branding = $this->getCheckoutBranding();
+        $this->context->smarty->assign(
+            array(
+                'lomi_pay_with_image_url' => $branding->getPayWithImageUrl(),
+                'lomi_payment_icons' => $branding->getPaymentIcons(),
+            )
+        );
+
+        return $this->fetch('module:lomi/views/templates/hook/branding.tpl');
     }
 
     public function uninstall()
@@ -170,12 +219,19 @@ class Lomi extends PaymentModule
     public function getAmountMinorUnits(Cart $cart)
     {
         $currency = new Currency((int) $cart->id_currency);
+        $iso = strtoupper((string) $currency->iso_code);
+        $total = (float) $cart->getOrderTotal(true, Cart::BOTH);
+
+        if ($iso === 'XOF') {
+            return (int) round($total);
+        }
+
         $decimals = 2;
         if (property_exists($currency, 'precision')) {
             $decimals = (int) $currency->precision;
         }
 
-        return (int) round((float) $cart->getOrderTotal(true, Cart::BOTH) * pow(10, $decimals));
+        return (int) round($total * pow(10, $decimals));
     }
 
     /**
@@ -403,8 +459,8 @@ class Lomi extends PaymentModule
         $newOption = new PaymentOption();
         $newOption->setCallToActionText($this->trans('Pay with lomi.', array(), 'Modules.Lomi.Shop'))
             ->setAction($this->context->link->getModuleLink($this->name, 'validation', array(), true))
-            ->setAdditionalInformation($this->fetch('module:lomi/views/templates/hook/intro.tpl'))
-            ->setLogo(Media::getMediaPath(_PS_MODULE_DIR_ . $this->name . '/lomi-placeholder.svg'));
+            ->setAdditionalInformation($this->renderCheckoutBranding())
+            ->setLogo(Media::getMediaPath(_PS_MODULE_DIR_ . $this->name . '/views/img/pay-with-lomi.webp'));
 
         return array($newOption);
     }
