@@ -433,7 +433,7 @@ class Lomi extends PaymentModule
         $this->context->smarty->assign(
             array(
                 'lomi_webhook_url' => $this->context->link->getModuleLink('lomi', 'webhook', array(), true),
-                'lomi_module_logo' => __PS_BASE_URI__ . 'modules/' . $this->name . '/lomi-placeholder.svg',
+                'lomi_module_logo' => __PS_BASE_URI__ . 'modules/' . $this->name . '/views/img/pay-with-lomi.webp',
             )
         );
         $this->_html .= $this->display(__FILE__, 'views/templates/hook/infos.tpl');
