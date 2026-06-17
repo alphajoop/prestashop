@@ -90,7 +90,7 @@ Always click **Save** after pasting secrets. Re-paste the **full** value when up
 
 **Important:** The webhook signing secret is **not** your API secret key (`lomi_sk_…`). Each webhook endpoint has its own `whsec_…`. Test and live webhooks use different secrets.
 
-Webhook headers: `X-Lomi-Signature`, `X-Lomi-Event` — see [webhooks documentation](https://docs.lomi.africa/build/fundamentals/webhooks).
+Webhook headers: `X-Lomi-Signature`, `X-Lomi-Event` — see [webhooks documentation](https://docs.lomi.africa/build/webhooks).
 
 ### Supported currencies
 
